@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VML AEM Bulk Publisher</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+
+  <!-- ── Header ──────────────────────────────────────────────────────── -->
+  <header class="header">
+    <div class="header-brand">
+      <img src="../assets/logo-vml.png" alt="VML" class="logo" />
+      <div class="header-text">
+        <span class="header-title">AEM Bulk Publisher</span>
+        <span class="header-version">v1.0 · Internal Release</span>
+      </div>
+    </div>
+    <div class="status-badge">
+      <span id="status-dot" class="status-dot"></span>
+      <span id="status-text" class="status-text">Detecting...</span>
+    </div>
+  </header>
+
+  <!-- ── Error Banner ─────────────────────────────────────────────────── -->
+  <div id="error-banner" class="error-banner" style="display:none">
+    <span class="error-icon">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+    </span>
+    <span id="error-msg" class="error-msg"></span>
+  </div>
+
+  <!-- ── Warning Banner ─────────────────────────────────────────────────── -->
+  <div id="warning-banner" class="warning-banner" style="display:none">
+    <span class="warning-icon">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+    </span>
+    <span id="warning-msg" class="warning-msg"></span>
+  </div>
+
+
+  <!-- ── Input de Paths ────────────────────────────────────────────────── -->
+  <section class="card" id="input-card">
+    <div class="card-label">
+      <span class="label-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+      </span>
+      PATHS LIST
+    </div>
+    
+    <textarea 
+      id="paths-input" 
+      class="paths-textarea" 
+      placeholder="/content/dam/mi-proyecto/imagen1.jpg&#10;/content/mi-proyecto/us/en" 
+      aria-label="List of AEM paths"
+    ></textarea>
+    
+    <div class="paths-footer">
+      <div class="paths-count">
+        <span id="paths-counter">0</span> paths detected
+      </div>
+      <button id="btn-open-aem" class="btn-pill-outline" style="display: none;" title="Open AEM">OPEN AEM <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg></button>
+    </div>
+  </section>
+
+  <!-- ── Botón Principal ──────────────────────────────────────────────── -->
+  <button 
+    id="btn-inject"
+    class="btn btn-primary"
+    disabled
+    aria-label="Inject paths into AEM"
+  >
+    <span class="btn-icon">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+    </span>
+    INJECT PATHS
+  </button>
+
+  <!-- ── Footer ───────────────────────────────────────────────────────── -->
+  <footer class="footer">
+    <div class="footer-brand">
+      <img src="../assets/logo-vml.png" alt="VML" class="footer-logo" />
+      <div class="footer-text">
+        <span class="footer-developed">DEVELOPED BY:</span>
+        <span class="footer-team">VML ARGENTINA - ENGINEERING TEAM</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="../modules/create-paths/popup-create-paths.js"></script>
+</body>
+</html>

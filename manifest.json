@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "VML AEM Bulk Publisher",
+  "version": "1.0",
+  "description": "Herramienta para inyectar y publicar masivamente paths en AEM.",
+  "permissions": [
+      "storage",
+      "activeTab",
+      "scripting",
+      "webNavigation"
+    ],
+  "host_permissions": [
+    "https://*.adobeaemcloud.com/*"
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'; frame-ancestors 'none';"
+  },
+  "action": {
+    "default_popup": "core/popup.html",
+    "default_icon": "assets/logo-vml.png"
+  },
+  "icons": {
+    "128": "assets/logo-vml.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.adobeaemcloud.com/*"
+      ],
+      "js": [
+        "modules/create-paths/content-create-paths.js"
+      ],
+      "css": [
+        "core/content.css"
+      ],
+      "all_frames": true
+    }
+  ]
+}

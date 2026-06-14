@@ -1,0 +1,6 @@
+# Archivos generados por el empaquetador
+*.zip
+
+# OS
+.DS_Store
+Thumbs.db

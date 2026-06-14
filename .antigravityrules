@@ -1,0 +1,96 @@
+# AEM Bulk Publisher — AI Agent Rules & Architecture Guideline
+
+Welcome to the **AEM Bulk Publisher** repository. This file defines the architecture, flows, and AppSec requirements for any AI Agent working on this codebase.
+
+---
+
+## 📌 Project Context
+
+- **Name:** AEM Bulk Publisher
+- **Type:** Google Chrome Extension (Manifest V3)
+- **Author:** VML Argentina - Engineering Team
+- **Current Version:** 1.0
+- **Purpose:** Allows bulk upload and quick injection of paths into the 'Manage Publication' wizard in Adobe Experience Manager (AEM) as a Cloud Service, automating the manual process.
+- **Target AEM:** AEM as a Cloud Service `https://*.adobeaemcloud.com/*`
+- **API:** Does not use an external API. Interacts directly with the Coral UI DOM on the Manage Publication screen.
+
+---
+
+## 🏗️ Folder Structure & Architecture
+
+```text
+vml-aem-bulk-publisher/
+├── manifest.json                          # Extension config (Manifest V3)
+├── pack.ps1                               # PowerShell zip script for distribution
+├── assets/
+│   └── logo-vml.png                       # Branding
+├── core/
+│   ├── popup.css                          # UI styles (premium dark mode)
+│   ├── popup.html                         # Main popup UI
+├── modules/
+│   └── create-paths/                      # Path injection module
+│       ├── content-create-paths.js        # DOM injection, Coral UI Table logic
+│       └── popup-create-paths.js          # UI handler, path extraction logic
+├── .antigravityrules                      # AI Agent Instructions (this file)
+└── Readme.md                              # End-user documentation
+```
+
+---
+
+## 🔄 Core Flow
+
+### Bulk Publisher Module
+
+1. **Detection:** When opening the popup, `popup-create-paths.js` sends `CHECK_AEM_STATUS` or verifies the current URL. If it's AEM, it displays a green status.
+2. **User Input:** The user pastes a list of paths or full URLs.
+3. **Sanitization:** `getValidPaths()` filters irrelevant text and extracts the path starting from `/content/...`.
+4. **Injection:** Clicking "INJECT PATHS" sends a message to `content-create-paths.js`.
+5. **DOM Manipulation:** The content script finds the `.cq-common-admin-sourcepages` table in AEM and appends `<tr is="coral-table-row">` for each path, mimicking native Coral UI HTML.
+6. **Validation:** Duplicate paths already in the table are skipped. Empty AEM rows ("There is no item") are removed.
+
+---
+
+## 🧩 Module Integration Conventions
+
+When adding a new module:
+
+1. Create a folder in `modules/[name]/`
+2. `popup-[name].js` — UI logic and triggers
+3. `content-[name].js` — Page/API logic
+4. Register the content script in `manifest.json`
+5. Append the script tag at the end of `core/popup.html`
+6. Update `core/modules-info.js`
+7. Document in this file and in `Readme.md`
+
+---
+
+## 🛡️ Strict AppSec & Quality Rules
+
+- **XSS Protection (HTML Escaping):** Injected paths come from user input (textarea). You **must always** escape user input before injecting it into the DOM using `insertAdjacentHTML` or `innerHTML` to prevent Cross-Site Scripting (XSS) attacks in the AEM author session.
+- **No Eval:** Never use `eval()`.
+- **Credentials:** Does not require credential handling. Acts passively on the active AEM session.
+- **Minimal Permissions:** Only `activeTab` and `scripting`. Host permissions limited to `https://*.adobeaemcloud.com/*`.
+- **No Cross-Origin / Tracking:** The extension is 100% offline/local and must not make requests to external servers or track user metrics.
+
+---
+
+## 📝 Documentation Integrity Rule
+
+> [!IMPORTANT]
+> Whenever code is modified, check if `.antigravityrules` or `Readme.md` need updates. Never leave features undocumented.
+
+---
+
+## 🤖 Automatic Version Increment Rule
+
+> [!IMPORTANT]
+> In each Git commit, the `version` field in `manifest.json` MUST be incremented by `0.1`. This behavior is managed by the `.git/hooks/pre-commit` local hook.
+
+---
+
+## 🤖 Agent Response & Token Optimization Rules
+
+> [!IMPORTANT]
+>
+> - **Language:** All AI Agent responses MUST be in **English**.
+> - **Conciseness:** Keep answers short and direct. Let code speak for itself.
