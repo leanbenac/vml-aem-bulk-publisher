@@ -95,7 +95,7 @@ body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
   width: 32px;
   height: 32px;
   object-fit: contain;
-  filter: drop-shadow(0 0 8px var(--accent));
+  filter: drop-shadow(0 0 4px rgba(16, 220, 96, 0.4));
   border-radius: 8px;
 }
 
