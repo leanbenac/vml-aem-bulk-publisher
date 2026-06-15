@@ -8,11 +8,13 @@ A premium Chrome Extension designed for the VML Engineering Team to accelerate c
 ## ✨ Features
 
 - **Bulk Injection:** Paste a raw list of paths or full URLs and instantly inject them into the AEM `Manage Publication` wizard.
-- **Smart Parsing:** Automatically extracts clean `/content/...` paths from raw text, stripping out hostnames, parameters, or Jira text.
+- **Smart Parsing & Suffixes:** Automatically extracts clean `/content/...` paths. Supports appending components to multiple URLs simultaneously by appending `>> Component` inline or at the end of the list.
+- **Live Metadata Integration:** Fetches real-time publication, modification, and preview dates directly from AEM's JCR API (`.1.json`) and renders them using native `<foundation-time>` formatting.
 - **Duplicate Prevention:** Skips paths that are already present in the publication list.
+- **Multi-Frame Architecture:** Intelligently handles AEM's complex multi-iframe `Manage Publication` wizards without race conditions.
 - **Shadow DOM Support:** Seamlessly interacts with AEM's Coral UI components to ensure native-like behavior.
-- **Premium UI:** Features a custom dark mode interface aligned with VML internal tooling aesthetics.
-- **Secure:** Completely local execution. No external APIs, no tracking, and strict HTML sanitization (XSS prevention) on all user inputs.
+- **Premium UI:** Features a custom dark mode interface aligned with VML internal tooling aesthetics with interactive success animations.
+- **Secure by Design:** Completely local execution. No tracking. Uses strict `document.createElement()` DOM construction to entirely prevent DOM-based XSS vulnerabilities.
 
 ## 🚀 How to Use
 
@@ -39,8 +41,8 @@ This will generate `vml-aem-bulk-publisher-v1.0.zip` on your Desktop, ready to b
 ## 🛡️ Security & Architecture
 
 This project strictly follows AppSec guidelines defined in `.antigravityrules`. 
-- `innerHTML` is never used for user input.
-- All injected paths are escaped to prevent DOM-based XSS.
+- `innerHTML` and `insertAdjacentHTML` are **strictly prohibited** for rendering user input.
+- All injected rows are built programmatically using `document.createElement()` and `textContent` to ensure absolute XSS prevention.
 - The extension runs entirely in the context of the active tab (`activeTab` permission) without persistent background scripts or cross-origin requests.
 
 ---

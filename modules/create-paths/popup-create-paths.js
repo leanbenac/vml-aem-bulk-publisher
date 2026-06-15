@@ -93,21 +93,55 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } catch (err) {
       console.error(err);
-      showError('Please ensure you are on the AEM Manage Publication page and reload.');
+      if (err.message && err.message.includes('port closed')) {
+         showError('Manage Publication table not found. Ensure you are on the correct screen.');
+      } else {
+         showError('Please ensure you are on the AEM Manage Publication page and reload.');
+      }
       resetButton();
     }
   });
 
   function getValidPaths(text) {
-    return text.split('\n')
-      .map(line => line.trim())
-      .filter(line => line.includes('/content/'))
-      .map(line => {
+    const lines = text.split('\n').map(line => line.trim());
+    const validPaths = [];
+    let pendingPaths = [];
+    
+    for (const line of lines) {
+      if (line.includes('/content/')) {
         const index = line.indexOf('/content/');
-        // Extract from /content/ onwards, and clean any trailing spaces or hidden characters
-        return line.substring(index).trim();
-      })
-      .filter(path => path.length > 10);
+        let pathPart = line.substring(index).trim();
+        
+        // Si el usuario pegó ">> Hub Component" en la misma línea que la URL
+        if (pathPart.includes('>')) {
+          // Soporta >, >>, >>>, etc.
+          const parts = pathPart.split(/>+/);
+          const cleanPath = parts[0].trim();
+          if (parts.length > 1 && parts[1].trim() !== '') {
+             const suffix = '/' + parts[1].trim().toLowerCase().replace(/\s+/g, '-');
+             validPaths.push(cleanPath.endsWith(suffix) ? cleanPath : cleanPath + suffix);
+          } else {
+             validPaths.push(cleanPath);
+          }
+        } else {
+          pendingPaths.push(pathPart);
+        }
+      } else if (line.startsWith('>')) {
+        // ">> Hub Component" -> "hub-component"
+        const suffix = '/' + line.replace(/>+/g, '').trim().toLowerCase().replace(/\s+/g, '-');
+        
+        // Append suffix to all pending paths that don't already have it
+        pendingPaths.forEach(p => {
+          validPaths.push(p.endsWith(suffix) ? p : p + suffix);
+        });
+        pendingPaths = []; // Clear for the next block
+      }
+    }
+    
+    // If there are paths left without a suffix line at the end, just add them as-is
+    pendingPaths.forEach(p => validPaths.push(p));
+
+    return validPaths.filter(path => path.length > 10);
   }
 
   function showError(msg) {

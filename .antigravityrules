@@ -45,7 +45,7 @@ vml-aem-bulk-publisher/
 2. **User Input:** The user pastes a list of paths or full URLs.
 3. **Sanitization:** `getValidPaths()` filters irrelevant text and extracts the path starting from `/content/...`.
 4. **Injection:** Clicking "INJECT PATHS" sends a message to `content-create-paths.js`.
-5. **DOM Manipulation:** The content script finds the `.cq-common-admin-sourcepages` table in AEM and appends `<tr is="coral-table-row">` for each path, mimicking native Coral UI HTML.
+5. **DOM Manipulation:** The content script finds the correct table frame and safely appends `<tr is="coral-table-row">` for each path. It fetches live AEM node metadata (`.1.json`) to populate the table columns natively.
 6. **Validation:** Duplicate paths already in the table are skipped. Empty AEM rows ("There is no item") are removed.
 
 ---
@@ -66,7 +66,7 @@ When adding a new module:
 
 ## 🛡️ Strict AppSec & Quality Rules
 
-- **XSS Protection (HTML Escaping):** Injected paths come from user input (textarea). You **must always** escape user input before injecting it into the DOM using `insertAdjacentHTML` or `innerHTML` to prevent Cross-Site Scripting (XSS) attacks in the AEM author session.
+- **XSS Protection (DOM Construction):** Injected paths come from user input (textarea). You **must never** use `insertAdjacentHTML` or `innerHTML` for any content derived from user input or external APIs. You **must always** build the DOM programmatically using `document.createElement()` and `.textContent` to completely neutralize Cross-Site Scripting (XSS) risks in the AEM author session.
 - **No Eval:** Never use `eval()`.
 - **Credentials:** Does not require credential handling. Acts passively on the active AEM session.
 - **Minimal Permissions:** Only `activeTab` and `scripting`. Host permissions limited to `https://*.adobeaemcloud.com/*`.

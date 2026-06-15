@@ -5,8 +5,16 @@
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'INJECT_PATHS') {
         injectPathsIntoAemTable(request.paths)
-            .then(result => sendResponse({ success: true, injectedCount: result.injectedCount, skippedCount: result.skippedCount }))
-            .catch(err => sendResponse({ success: false, error: err.message }));
+            .then(result => {
+                sendResponse({ success: true, injectedCount: result.injectedCount, skippedCount: result.skippedCount });
+            })
+            .catch(err => {
+                if (err.message === 'IGNORED') {
+                    // Do not call sendResponse! Let another valid iframe respond.
+                    return;
+                }
+                sendResponse({ success: false, error: err.message });
+            });
         
         return true; // Keep message channel open for async response
     }
@@ -18,33 +26,70 @@ async function injectPathsIntoAemTable(paths) {
     const h1Text = titleElement ? titleElement.textContent : (document.title || '');
     const isReviewStep = h1Text.toLowerCase().includes('preview') || h1Text.toLowerCase().includes('publish');
 
-    // Buscar el tbody directamente — funciona aunque el <table> esté dentro de Shadow DOM de Coral UI
+    // Buscar el tbody directamente — funciona aunque el <table> esté dentro de Shadow DOM de Coral UI o sin clases estandar.
     let tbody = 
         document.querySelector('table.cq-common-admin-sourcepages tbody') ||
         document.querySelector('tbody[is="coral-table-body"]') ||
         document.querySelector('.cq-common-admin-sourcepages tbody') ||
         document.querySelector('coral-table-body') ||
         document.querySelector('.foundation-collection-body') ||
+        document.querySelector('table.coral-Table tbody') ||
+        document.querySelector('coral-table tbody') ||
         document.querySelector('tbody');
 
     if (!tbody) {
         // En escenarios con multiples iframes (all_frames: true), los iframes ocultos no tendrán la tabla.
-        // Hacemos una pausa de 500ms antes de lanzar el error. Así le damos tiempo al iframe CORRECTO
-        // de encontrar la tabla y responder con "success: true" primero, ganando la carrera.
+        // Hacemos una pausa de 500ms antes de lanzar el error.
         await new Promise(resolve => setTimeout(resolve, 500));
         
-        if (isReviewStep) {
-            throw new Error('You are on the Preview/Publish review step. Click "Back" to return to Scope, then inject your paths.');
+        tbody = 
+            document.querySelector('table.cq-common-admin-sourcepages tbody') ||
+            document.querySelector('tbody[is="coral-table-body"]') ||
+            document.querySelector('.cq-common-admin-sourcepages tbody') ||
+            document.querySelector('coral-table-body') ||
+            document.querySelector('.foundation-collection-body') ||
+            document.querySelector('table.coral-Table tbody') ||
+            document.querySelector('coral-table tbody') ||
+            document.querySelector('tbody');
+
+        if (!tbody) {
+            // Throw an IGNORED error so this specific frame doesn't hijack the sendResponse callback.
+            throw new Error('IGNORED');
         }
-        throw new Error('Manage Publication table not found. Ensure you are on the correct screen.');
     }
 
-    // Compatibilidad: si encontramos el tbody, obtenemos también la tabla padre
-    const table = tbody.closest('table');
+    let table = tbody.closest('table') || tbody.closest('coral-table');
+    if (!table) {
+        throw new Error('Parent table not found for the selected body.');
+    }
 
     let injectedCount = 0;
 
     let skippedCount = 0;
+
+    // Format date utility (Full ISO)
+    const formatDate = (timestamp) => {
+        if (!timestamp) return '-';
+        try {
+            const date = new Date(timestamp);
+            if (isNaN(date.getTime())) return '-';
+            return date.toISOString();
+        } catch (e) {
+            return '-';
+        }
+    };
+
+    // Format date utility (Short string like "May 29, 2026")
+    const formatShortDate = (timestamp) => {
+        if (!timestamp) return '-';
+        try {
+            const date = new Date(timestamp);
+            if (isNaN(date.getTime())) return '-';
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        } catch (e) {
+            return '-';
+        }
+    };
 
     // Iterar y crear las filas
     for (const path of paths) {
@@ -55,21 +100,64 @@ async function injectPathsIntoAemTable(paths) {
             continue;
         }
 
-        // Obtener el nombre del archivo/página del path
-        const rawTitle = path.split('/').pop() || 'Item';
+        // Obtener el nombre del archivo/página por defecto
+        let titleText = path.split('/').pop() || 'Item';
+        
+        let modifiedRaw = null;
+        let publishedRaw = null;
+        let previewedRaw = null;
 
-        // Sanitización para prevenir XSS (Cross-Site Scripting)
-        const escapeHtml = (unsafe) => {
-            return unsafe
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#039;");
-        };
+        // Fetch AEM metadata safely (Sling GET API)
+        try {
+            const response = await fetch(`${path}.1.json`);
+            if (response.ok) {
+                const data = await response.json();
+                
+                // Extraer título real si existe
+                if (data['jcr:content'] && data['jcr:content']['jcr:title']) {
+                    titleText = data['jcr:content']['jcr:title'];
+                } else if (data['jcr:title']) {
+                    titleText = data['jcr:title'];
+                }
 
-        const safePath = escapeHtml(path);
-        const title = escapeHtml(rawTitle);
+                // Extraer modified
+                if (data['jcr:content'] && data['jcr:content']['cq:lastModified']) {
+                    modifiedRaw = data['jcr:content']['cq:lastModified'];
+                } else if (data['jcr:lastModified']) {
+                    modifiedRaw = data['jcr:lastModified'];
+                }
+
+                // Extraer published
+                if (data['jcr:content'] && data['jcr:content']['cq:lastReplicated']) {
+                    publishedRaw = data['jcr:content']['cq:lastReplicated'];
+                }
+
+                // Extraer previewed
+                // Try specific AEM properties for preview across different versions/setups
+                const previewKeys = [
+                    'cq:lastPreviewed',
+                    'cq:lastReplicated_preview',
+                    'cq:lastRolledout',
+                    'previewDate'
+                ];
+                
+                for (const key of previewKeys) {
+                    if (data['jcr:content'] && data['jcr:content'][key]) {
+                        previewedRaw = data['jcr:content'][key];
+                        break;
+                    } else if (data[key]) {
+                        previewedRaw = data[key];
+                        break;
+                    }
+                }
+            }
+        } catch (err) {
+            console.warn(`Could not fetch metadata for ${path}`, err);
+        }
+
+        const modifiedText = formatDate(modifiedRaw);
+        const publishedText = formatShortDate(publishedRaw);
+        const previewedText = formatShortDate(previewedRaw);
 
         // Limpiar la fila de "There is no item." si la tabla estaba vacía
         const emptyMessageRow = tbody.querySelector('tr.coral-Table-emptyMessage, tr.foundation-collection-empty');
@@ -77,41 +165,131 @@ async function injectPathsIntoAemTable(paths) {
             emptyMessageRow.remove();
         }
 
-        // HTML mínimo requerido por Coral UI y AEM para reconocer el ítem
-        const rowHtml = `
-            <tr is="coral-table-row" class="foundation-collection-item _coral-Table-row" itemprop="item" data-foundation-collection-item-id="${safePath}" tabindex="0" aria-selected="true">
-                <td is="coral-table-cell" class="select _coral-Table-cell _coral-Table-cell--check">
-                    <coral-checkbox coral-table-rowselect="" class="_coral-Checkbox" checked>
-                        <input type="checkbox" handle="input" class=" _coral-Checkbox-input" aria-label="Select" checked>
-                        <span class=" _coral-Checkbox-box" handle="checkbox">
-                            <svg focusable="false" aria-hidden="true" class="_coral-Icon--svg _coral-Icon _coral-Checkbox-checkmark _coral-UIIcon-CheckmarkSmall"><use xlink:href="#spectrum-css-icon-CheckmarkSmall"></use></svg>
-                        </span>
-                    </coral-checkbox>
-                </td>
-                <td is="coral-table-cell" class="foundation-collection-item-title _coral-Table-cell" alignment="column">
-                    <span>${title} <span style="font-size:10px; color:#22c55e; margin-left:4px;">(Injected)</span></span>
-                    <div class="foundation-layout-util-subtletext">${safePath}</div>
-                </td>
-                <td is="coral-table-cell" class="foundation-collection-item-modified _coral-Table-cell" alignment="column">
-                    <div class="foundation-layout-util-subtletext">-</div>
-                </td>
-                <td is="coral-table-cell" class="foundation-collection-item-published _coral-Table-cell" alignment="column">
-                    <div class="foundation-layout-util-subtletext">-</div>
-                </td>
-                <td is="coral-table-cell" class="foundation-collection-item-previewed _coral-Table-cell" alignment="column">
-                    <div class="foundation-layout-util-subtletext">-</div>
-                </td>
-                <td is="coral-table-cell" class="foundation-collection-item-references _coral-Table-cell" alignment="column">
-                    -
-                </td>
-                <td is="coral-table-cell" class="foundation-collection-item-publish-target _coral-Table-cell" alignment="column">
-                    <span>AEM</span>
-                </td>
-            </tr>
-            <input type="hidden" name="path" value="${safePath}">
-        `;
+        // ==========================================
+        // XSS SAFE DOM INJECTION (.antigravityrules)
+        // ==========================================
+        const tr = document.createElement('tr');
+        tr.setAttribute('is', 'coral-table-row');
+        tr.className = 'foundation-collection-item _coral-Table-row';
+        tr.setAttribute('itemprop', 'item');
+        tr.setAttribute('data-foundation-collection-item-id', path);
+        tr.setAttribute('tabindex', '0');
+        tr.setAttribute('aria-selected', 'true');
 
-        tbody.insertAdjacentHTML('beforeend', rowHtml);
+        // Checkbox Cell
+        const tdCheck = document.createElement('td');
+        tdCheck.setAttribute('is', 'coral-table-cell');
+        tdCheck.className = 'select _coral-Table-cell _coral-Table-cell--check';
+        
+        const coralCheck = document.createElement('coral-checkbox');
+        coralCheck.setAttribute('coral-table-rowselect', '');
+        coralCheck.className = '_coral-Checkbox';
+        coralCheck.setAttribute('checked', '');
+
+        const inputCheck = document.createElement('input');
+        inputCheck.type = 'checkbox';
+        inputCheck.setAttribute('handle', 'input');
+        inputCheck.className = '_coral-Checkbox-input';
+        inputCheck.setAttribute('aria-label', 'Select');
+        inputCheck.checked = true;
+
+        const spanBox = document.createElement('span');
+        spanBox.className = '_coral-Checkbox-box';
+        spanBox.setAttribute('handle', 'checkbox');
+        spanBox.innerHTML = '<svg focusable="false" aria-hidden="true" class="_coral-Icon--svg _coral-Icon _coral-Checkbox-checkmark _coral-UIIcon-CheckmarkSmall"><use xlink:href="#spectrum-css-icon-CheckmarkSmall"></use></svg>';
+        
+        coralCheck.appendChild(inputCheck);
+        coralCheck.appendChild(spanBox);
+        tdCheck.appendChild(coralCheck);
+
+        // Title Cell
+        const tdTitle = document.createElement('td');
+        tdTitle.setAttribute('is', 'coral-table-cell');
+        tdTitle.className = 'foundation-collection-item-title _coral-Table-cell';
+        tdTitle.setAttribute('alignment', 'column');
+
+        const spanTitleContainer = document.createElement('span');
+        spanTitleContainer.textContent = titleText + ' ';
+        
+        const spanInjected = document.createElement('span');
+        spanInjected.style.fontSize = '10px';
+        spanInjected.style.color = '#22c55e';
+        spanInjected.style.marginLeft = '4px';
+        spanInjected.textContent = '(Injected)';
+        spanTitleContainer.appendChild(spanInjected);
+
+        const divPath = document.createElement('div');
+        divPath.className = 'foundation-layout-util-subtletext';
+        divPath.textContent = path;
+
+        tdTitle.appendChild(spanTitleContainer);
+        tdTitle.appendChild(divPath);
+
+        // Modified Cell
+        const tdModified = document.createElement('td');
+        tdModified.setAttribute('is', 'coral-table-cell');
+        tdModified.className = 'foundation-collection-item-modified _coral-Table-cell';
+        tdModified.setAttribute('alignment', 'column');
+        const divModified = document.createElement('div');
+        divModified.className = 'foundation-layout-util-subtletext';
+        divModified.textContent = modifiedText;
+        tdModified.appendChild(divModified);
+
+        // Published Cell
+        const tdPublished = document.createElement('td');
+        tdPublished.setAttribute('is', 'coral-table-cell');
+        tdPublished.className = 'foundation-collection-item-published _coral-Table-cell';
+        tdPublished.setAttribute('alignment', 'column');
+        const divPublished = document.createElement('div');
+        divPublished.className = 'foundation-layout-util-subtletext';
+        divPublished.textContent = publishedText;
+        tdPublished.appendChild(divPublished);
+
+        // Previewed Cell
+        const tdPreviewed = document.createElement('td');
+        tdPreviewed.setAttribute('is', 'coral-table-cell');
+        tdPreviewed.className = 'foundation-collection-item-previewed _coral-Table-cell';
+        tdPreviewed.setAttribute('alignment', 'column');
+        const divPreviewed = document.createElement('div');
+        divPreviewed.className = 'foundation-layout-util-subtletext';
+        divPreviewed.textContent = previewedText;
+        tdPreviewed.appendChild(divPreviewed);
+
+        // References Cell
+        const tdReferences = document.createElement('td');
+        tdReferences.setAttribute('is', 'coral-table-cell');
+        tdReferences.className = 'foundation-collection-item-references _coral-Table-cell';
+        tdReferences.setAttribute('alignment', 'column');
+        tdReferences.textContent = 'all';
+
+        // Target Cell
+        const tdTarget = document.createElement('td');
+        tdTarget.setAttribute('is', 'coral-table-cell');
+        tdTarget.className = 'foundation-collection-item-publish-target _coral-Table-cell';
+        tdTarget.setAttribute('alignment', 'column');
+        const spanTarget = document.createElement('span');
+        spanTarget.textContent = 'AEM';
+        tdTarget.appendChild(spanTarget);
+
+        // Hidden input required by AEM form submission
+        const hiddenInput = document.createElement('input');
+        hiddenInput.type = 'hidden';
+        hiddenInput.name = 'path';
+        hiddenInput.value = path;
+
+        // Assemble Row
+        tr.appendChild(tdCheck);
+        tr.appendChild(tdTitle);
+        tr.appendChild(tdModified);
+        tr.appendChild(tdPublished);
+        tr.appendChild(tdPreviewed);
+        tr.appendChild(tdReferences);
+        tr.appendChild(tdTarget);
+
+        // Insert into table
+        tbody.appendChild(tr);
+        tbody.appendChild(hiddenInput);
+
         injectedCount++;
     }
 
