@@ -30,9 +30,6 @@
       "js": [
         "modules/create-paths/content-create-paths.js"
       ],
-      "css": [
-        "core/content.css"
-      ],
       "all_frames": true
     }
   ]
