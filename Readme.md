@@ -2,8 +2,7 @@
 
 ![Version](https://img.shields.io/badge/version-1.0-brightgreen.svg)
 ![Type](https://img.shields.io/badge/type-Chrome%20Extension-blue)
-
-A premium Chrome Extension designed for the VML Engineering Team to accelerate content publishing workflows in **Adobe Experience Manager (AEM) as a Cloud Service**.
+A premium Chrome Extension designed for the VML Automation Squad to accelerate content publishing workflows in **Adobe Experience Manager (AEM) as a Cloud Service**.
 
 ## ✨ Features
 
@@ -46,4 +45,4 @@ This project strictly follows AppSec guidelines defined in `.antigravityrules`.
 - The extension runs entirely in the context of the active tab (`activeTab` permission) without persistent background scripts or cross-origin requests.
 
 ---
-**Developed by:** VML Argentina - Engineering Team
+**Developed by:** VML Argentina - Automation Squad

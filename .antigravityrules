@@ -8,7 +8,7 @@ Welcome to the **AEM Bulk Publisher** repository. This file defines the architec
 
 - **Name:** AEM Bulk Publisher
 - **Type:** Google Chrome Extension (Manifest V3)
-- **Author:** VML Argentina - Engineering Team
+- **Author:** VML Argentina - Automation Squad
 - **Current Version:** 1.0
 - **Purpose:** Allows bulk upload and quick injection of paths into the 'Manage Publication' wizard in Adobe Experience Manager (AEM) as a Cloud Service, automating the manual process.
 - **Target AEM:** AEM as a Cloud Service `https://*.adobeaemcloud.com/*`
