@@ -14,7 +14,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 async function injectPathsIntoAemTable(paths) {
     // Detectar si el usuario está en el paso Preview/Publish del wizard
-    const h1Text = document.querySelector('h1')?.textContent || '';
+    const titleElement = document.querySelector('h1, coral-panel-title, .cq-sites-managepublication-wizard-step-title, coral-step[selected] coral-step-label');
+    const h1Text = titleElement ? titleElement.textContent : (document.title || '');
     const isReviewStep = h1Text.toLowerCase().includes('preview') || h1Text.toLowerCase().includes('publish');
 
     // Buscar el tbody directamente — funciona aunque el <table> esté dentro de Shadow DOM de Coral UI
@@ -23,9 +24,15 @@ async function injectPathsIntoAemTable(paths) {
         document.querySelector('tbody[is="coral-table-body"]') ||
         document.querySelector('.cq-common-admin-sourcepages tbody') ||
         document.querySelector('coral-table-body') ||
+        document.querySelector('.foundation-collection-body') ||
         document.querySelector('tbody');
 
     if (!tbody) {
+        // En escenarios con multiples iframes (all_frames: true), los iframes ocultos no tendrán la tabla.
+        // Hacemos una pausa de 500ms antes de lanzar el error. Así le damos tiempo al iframe CORRECTO
+        // de encontrar la tabla y responder con "success: true" primero, ganando la carrera.
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
         if (isReviewStep) {
             throw new Error('You are on the Preview/Publish review step. Click "Back" to return to Scope, then inject your paths.');
         }
