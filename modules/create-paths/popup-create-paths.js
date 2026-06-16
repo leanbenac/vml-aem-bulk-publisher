@@ -46,15 +46,34 @@ document.addEventListener('DOMContentLoaded', () => {
   btnSaveSettings.addEventListener('click', () => {
     const newUrl = aemUrlInput.value.trim();
     if (newUrl) {
-      defaultAemUrl = newUrl;
-      chrome.storage.local.set({ aemBaseUrl: newUrl });
-      btnSaveSettings.textContent = 'SAVED!';
-      btnSaveSettings.classList.add('btn-success');
-      setTimeout(() => {
-        btnSaveSettings.textContent = 'SAVE';
-        btnSaveSettings.classList.remove('btn-success');
-        settingsPanel.classList.remove('open');
-      }, 1000);
+      try {
+        // Validate URL format
+        new URL(newUrl);
+        if (!newUrl.startsWith('http://') && !newUrl.startsWith('https://')) {
+          throw new Error('Must be http/https');
+        }
+
+        defaultAemUrl = newUrl;
+        chrome.storage.local.set({ aemBaseUrl: newUrl });
+        btnSaveSettings.textContent = 'SAVED!';
+        btnSaveSettings.classList.add('btn-success');
+        setTimeout(() => {
+          btnSaveSettings.textContent = 'SAVE';
+          btnSaveSettings.classList.remove('btn-success');
+          settingsPanel.classList.remove('open');
+        }, 1000);
+      } catch (e) {
+        btnSaveSettings.textContent = 'INVALID URL';
+        btnSaveSettings.style.background = 'rgba(239, 68, 68, 0.15)';
+        btnSaveSettings.style.borderColor = 'var(--error)';
+        btnSaveSettings.style.color = 'var(--error)';
+        setTimeout(() => {
+          btnSaveSettings.textContent = 'SAVE';
+          btnSaveSettings.style.background = '';
+          btnSaveSettings.style.borderColor = '';
+          btnSaveSettings.style.color = '';
+        }, 1500);
+      }
     }
   });
 
