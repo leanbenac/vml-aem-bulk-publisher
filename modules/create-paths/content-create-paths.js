@@ -6,7 +6,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'INJECT_PATHS') {
         injectPathsIntoAemTable(request.paths)
             .then(result => {
-                sendResponse({ success: true, injectedCount: result.injectedCount, skippedCount: result.skippedCount });
+                sendResponse({ 
+                    success: true, 
+                    injectedCount: result.injectedCount, 
+                    skippedCount: result.skippedCount,
+                    notFoundCount: result.notFoundCount
+                });
             })
             .catch(err => {
                 if (err.message === 'IGNORED') {
@@ -64,8 +69,8 @@ async function injectPathsIntoAemTable(paths) {
     }
 
     let injectedCount = 0;
-
     let skippedCount = 0;
+    let notFoundCount = 0;
 
     // Format date utility (Full ISO)
     const formatDate = (timestamp) => {
@@ -92,7 +97,20 @@ async function injectPathsIntoAemTable(paths) {
     };
 
     // Iterar y crear las filas
-    for (const path of paths) {
+    for (let i = 0; i < paths.length; i++) {
+        const path = paths[i];
+        
+        // Report progress to popup
+        try {
+            chrome.runtime.sendMessage({
+                action: 'INJECT_PROGRESS',
+                current: i + 1,
+                total: paths.length
+            });
+        } catch(e) {
+            // Ignore if popup is closed
+        }
+
         // Evitar duplicados (si el path ya está en la tabla)
         const existingRow = tbody.querySelector(`tr[data-foundation-collection-item-id="${path}"]`);
         if (existingRow) {
@@ -108,9 +126,11 @@ async function injectPathsIntoAemTable(paths) {
         let previewedRaw = null;
 
         // Fetch AEM metadata safely (Sling GET API)
+        let pathExists = false;
         try {
             const response = await fetch(`${path}.1.json`);
             if (response.ok) {
+                pathExists = true;
                 const data = await response.json();
                 
                 // Extraer título real si existe
@@ -150,9 +170,16 @@ async function injectPathsIntoAemTable(paths) {
                         break;
                     }
                 }
+            } else {
+                console.warn(`Path does not exist in AEM: ${path}`);
             }
         } catch (err) {
             console.warn(`Could not fetch metadata for ${path}`, err);
+        }
+
+        if (!pathExists) {
+            notFoundCount++;
+            continue; // Skip this path because it does not exist
         }
 
         const modifiedText = formatDate(modifiedRaw);
@@ -308,9 +335,11 @@ async function injectPathsIntoAemTable(paths) {
         publishButton.disabled = false;
     }
 
-    if (injectedCount === 0) {
+    if (injectedCount === 0 && notFoundCount === 0) {
         throw new Error('All entered paths were already in the table.');
+    } else if (injectedCount === 0 && notFoundCount > 0) {
+        throw new Error(`All paths were invalid. ${notFoundCount} path(s) not found in AEM.`);
     }
 
-    return { injectedCount, skippedCount };
+    return { injectedCount, skippedCount, notFoundCount };
 }

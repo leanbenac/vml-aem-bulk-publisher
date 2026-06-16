@@ -6,13 +6,14 @@ A premium Chrome Extension designed for the VML Automation Squad to accelerate c
 
 ## ✨ Features
 
-- **Bulk Injection:** Paste a raw list of paths or full URLs and instantly inject them into the AEM `Manage Publication` wizard.
+- **Bulk Injection:** Paste a raw list of paths or full URLs and instantly inject them into the AEM `Manage Publication` wizard. Use `Ctrl + Enter` (or `Cmd + Enter`) for rapid injection.
 - **Smart Parsing & Suffixes:** Automatically extracts clean `/content/...` paths. Supports appending components to multiple URLs simultaneously by appending `>> Component` inline or at the end of the list.
-- **Live Metadata Integration:** Fetches real-time publication, modification, and preview dates directly from AEM's JCR API (`.1.json`) and renders them using native `<foundation-time>` formatting.
-- **Duplicate Prevention:** Skips paths that are already present in the publication list.
+- **Session Persistence:** Text input is automatically saved in `chrome.storage.local`, ensuring no data is lost if the popup is closed before injection.
+- **Target URL Configuration:** Features a minimalist settings panel (⚙️) to customize the target AEM base URL for the "OPEN AEM" button, avoiding hardcoded environments.
+- **Real-Time Validation & Metadata:** Fetches real-time data from AEM's Sling API (`.1.json`). Not only does it render publication and modification dates natively, but it also **actively validates path existence**, automatically skipping and ignoring 404/non-existent paths to prevent invalid injections.
+- **Duplicate Prevention:** Automatically removes duplicate paths from the input and skips paths that are already present in the AEM publication list.
 - **Multi-Frame Architecture:** Intelligently handles AEM's complex multi-iframe `Manage Publication` wizards without race conditions.
-- **Shadow DOM Support:** Seamlessly interacts with AEM's Coral UI components to ensure native-like behavior.
-- **Premium UI:** Features a custom dark mode interface aligned with VML internal tooling aesthetics with interactive success animations.
+- **Premium UI:** Features a custom dark mode interface aligned with VML internal tooling aesthetics, detailed banner alerts, and an **animated progress bar** mapped to the injection loop.
 - **Secure by Design:** Completely local execution. No tracking. Uses strict `document.createElement()` DOM construction to entirely prevent DOM-based XSS vulnerabilities.
 
 ## 🚀 How to Use

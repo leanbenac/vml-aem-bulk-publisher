@@ -9,6 +9,61 @@ document.addEventListener('DOMContentLoaded', () => {
   const warningBanner = document.getElementById('warning-banner');
   const warningMsg = document.getElementById('warning-msg');
   const btnOpenAem = document.getElementById('btn-open-aem');
+  const btnSettings = document.getElementById('btn-settings');
+  const btnSaveSettings = document.getElementById('btn-save-settings');
+  const settingsPanel = document.getElementById('settings-panel');
+  const aemUrlInput = document.getElementById('aem-url-input');
+  const progressFill = document.getElementById('progress-fill');
+
+  let defaultAemUrl = 'https://author-p154363-e1620826.adobeaemcloud.com/ui#/aem/assets.html/content/dam/own/ford';
+
+  // Restore saved paths and settings
+  chrome.storage.local.get(['savedPaths', 'aemBaseUrl'], (result) => {
+    if (result.savedPaths) {
+      pathsInput.value = result.savedPaths;
+      const { paths, invalidCount, duplicateCount } = getValidPaths(result.savedPaths);
+      pathsCounter.textContent = paths.length;
+      btnInject.disabled = paths.length === 0;
+      
+      if (result.savedPaths.trim().length > 0 && (invalidCount > 0 || duplicateCount > 0)) {
+        const msgs = [];
+        if (invalidCount > 0) msgs.push(`${invalidCount} invalid lines ignored`);
+        if (duplicateCount > 0) msgs.push(`${duplicateCount} duplicates removed`);
+        warningMsg.textContent = msgs.join(' | ');
+        warningBanner.style.display = 'flex';
+      }
+    }
+    if (result.aemBaseUrl) {
+      defaultAemUrl = result.aemBaseUrl;
+    }
+    aemUrlInput.value = defaultAemUrl;
+  });
+
+  btnSettings.addEventListener('click', () => {
+    settingsPanel.classList.toggle('open');
+  });
+
+  btnSaveSettings.addEventListener('click', () => {
+    const newUrl = aemUrlInput.value.trim();
+    if (newUrl) {
+      defaultAemUrl = newUrl;
+      chrome.storage.local.set({ aemBaseUrl: newUrl });
+      btnSaveSettings.textContent = 'SAVED!';
+      btnSaveSettings.classList.add('btn-success');
+      setTimeout(() => {
+        btnSaveSettings.textContent = 'SAVE';
+        btnSaveSettings.classList.remove('btn-success');
+        settingsPanel.classList.remove('open');
+      }, 1000);
+    }
+  });
+
+  chrome.runtime.onMessage.addListener((request) => {
+    if (request.action === 'INJECT_PROGRESS') {
+      const percentage = (request.current / request.total) * 100;
+      progressFill.style.width = `${percentage}%`;
+    }
+  });
 
   // Verify we are on an AEM Manage Publication page
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -26,23 +81,42 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   btnOpenAem.addEventListener('click', () => {
-    chrome.tabs.create({ url: 'https://author-p154363-e1620826.adobeaemcloud.com/ui#/aem/assets.html/content/dam/own/ford' });
+    chrome.tabs.create({ url: defaultAemUrl });
+  });
+
+  pathsInput.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      if (!btnInject.disabled) {
+        btnInject.click();
+      }
+    }
   });
 
   pathsInput.addEventListener('input', () => {
     const text = pathsInput.value;
-    const paths = getValidPaths(text);
+    
+    // Save paths to storage so they are not lost if popup closes
+    chrome.storage.local.set({ savedPaths: text });
+    
+    const { paths, invalidCount, duplicateCount } = getValidPaths(text);
     pathsCounter.textContent = paths.length;
     btnInject.disabled = paths.length === 0;
     
-    // Hide messages when user starts typing again
     errorBanner.style.display = 'none';
     warningBanner.style.display = 'none';
+
+    if (text.trim().length > 0 && (invalidCount > 0 || duplicateCount > 0)) {
+      const msgs = [];
+      if (invalidCount > 0) msgs.push(`${invalidCount} invalid lines ignored`);
+      if (duplicateCount > 0) msgs.push(`${duplicateCount} duplicates removed`);
+      warningMsg.textContent = msgs.join(' | ');
+      warningBanner.style.display = 'flex';
+    }
   });
 
   btnInject.addEventListener('click', async () => {
     const text = pathsInput.value;
-    const paths = getValidPaths(text);
+    const { paths } = getValidPaths(text);
     if (paths.length === 0) return;
 
     // Hide any previous messages
@@ -51,6 +125,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     btnInject.disabled = true;
     btnInject.innerHTML = '<span class="spinner"></span> INJECTING...';
+    
+    progressFill.style.transition = 'none';
+    progressFill.style.width = '0%';
+    progressFill.style.opacity = '1';
+    // Allow browser to apply the 0% before re-enabling transition
+    setTimeout(() => { progressFill.style.transition = 'width 0.2s ease, opacity 0.3s ease'; }, 10);
 
     // Get active tab
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -73,8 +153,12 @@ document.addEventListener('DOMContentLoaded', () => {
         btnInject.innerHTML = `<span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></span> ${response.injectedCount} PATHS INJECTED!`;
         
         // Handle skipped paths warning
-        if (response.skippedCount > 0) {
-          warningMsg.textContent = `${response.injectedCount} paths injected. ${response.skippedCount} skipped (already in table).`;
+        if (response.skippedCount > 0 || response.notFoundCount > 0) {
+          const warnMsgs = [];
+          if (response.skippedCount > 0) warnMsgs.push(`${response.skippedCount} skipped (already in table)`);
+          if (response.notFoundCount > 0) warnMsgs.push(`${response.notFoundCount} skipped (not found in AEM)`);
+          
+          warningMsg.textContent = `${response.injectedCount} injected. ` + warnMsgs.join(' | ');
           warningBanner.style.display = 'flex';
         }
 
@@ -82,6 +166,7 @@ document.addEventListener('DOMContentLoaded', () => {
         errorBanner.style.display = 'none';
         pathsInput.value = '';
         pathsCounter.textContent = '0';
+        chrome.storage.local.remove('savedPaths');
 
         setTimeout(() => {
           btnInject.classList.remove('btn-success');
@@ -99,6 +184,9 @@ document.addEventListener('DOMContentLoaded', () => {
          showError('Please ensure you are on the AEM Manage Publication page and reload.');
       }
       resetButton();
+    } finally {
+      progressFill.style.opacity = '0';
+      setTimeout(() => { progressFill.style.width = '0%'; }, 300);
     }
   });
 
@@ -106,15 +194,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const lines = text.split('\n').map(line => line.trim());
     const validPaths = [];
     let pendingPaths = [];
+    let invalidCount = 0;
     
     for (const line of lines) {
+      if (!line) continue;
+      
       if (line.includes('/content/')) {
         const index = line.indexOf('/content/');
         let pathPart = line.substring(index).trim();
         
-        // Si el usuario pegó ">> Hub Component" en la misma línea que la URL
         if (pathPart.includes('>')) {
-          // Soporta >, >>, >>>, etc.
           const parts = pathPart.split(/>+/);
           const cleanPath = parts[0].trim();
           if (parts.length > 1 && parts[1].trim() !== '') {
@@ -127,21 +216,23 @@ document.addEventListener('DOMContentLoaded', () => {
           pendingPaths.push(pathPart);
         }
       } else if (line.startsWith('>')) {
-        // ">> Hub Component" -> "hub-component"
         const suffix = '/' + line.replace(/>+/g, '').trim().toLowerCase().replace(/\s+/g, '-');
-        
-        // Append suffix to all pending paths that don't already have it
         pendingPaths.forEach(p => {
           validPaths.push(p.endsWith(suffix) ? p : p + suffix);
         });
-        pendingPaths = []; // Clear for the next block
+        pendingPaths = [];
+      } else {
+        invalidCount++;
       }
     }
     
-    // If there are paths left without a suffix line at the end, just add them as-is
     pendingPaths.forEach(p => validPaths.push(p));
 
-    return validPaths.filter(path => path.length > 10);
+    const finalPaths = validPaths.filter(path => path.length > 10);
+    const uniquePaths = [...new Set(finalPaths)];
+    const duplicateCount = finalPaths.length - uniquePaths.length;
+
+    return { paths: uniquePaths, invalidCount, duplicateCount };
   }
 
   function showError(msg) {
