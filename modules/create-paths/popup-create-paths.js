@@ -212,40 +212,59 @@ document.addEventListener('DOMContentLoaded', () => {
   function getValidPaths(text) {
     const lines = text.split('\n').map(line => line.trim());
     const validPaths = [];
-    let pendingPaths = [];
+    let currentPaths = [];
+    let expectingPaths = true;
     let invalidCount = 0;
     
     for (const line of lines) {
       if (!line) continue;
       
       if (line.includes('/content/')) {
+        if (!expectingPaths) {
+           currentPaths = [];
+           expectingPaths = true;
+        }
+        
         const index = line.indexOf('/content/');
         let pathPart = line.substring(index).trim();
         
         if (pathPart.includes('>')) {
+          expectingPaths = false;
           const parts = pathPart.split(/>+/);
           const cleanPath = parts[0].trim();
+          currentPaths.push(cleanPath);
+          
           if (parts.length > 1 && parts[1].trim() !== '') {
-             const suffix = '/' + parts[1].trim().toLowerCase().replace(/\s+/g, '-');
+             let itemName = parts[1].trim();
+             let formattedName = itemName.includes('.') ? itemName.replace(/\s+/g, '-') : itemName.toLowerCase().replace(/\s+/g, '-');
+             const suffix = '/' + formattedName;
              validPaths.push(cleanPath.endsWith(suffix) ? cleanPath : cleanPath + suffix);
           } else {
              validPaths.push(cleanPath);
           }
         } else {
-          pendingPaths.push(pathPart);
+          currentPaths.push(pathPart);
         }
       } else if (line.startsWith('>')) {
-        const suffix = '/' + line.replace(/>+/g, '').trim().toLowerCase().replace(/\s+/g, '-');
-        pendingPaths.forEach(p => {
+        expectingPaths = false;
+        
+        const itemName = line.replace(/>+/g, '').trim();
+        // Respetamos mayúsculas si es un archivo (tiene punto), si no lo pasamos a minúsculas
+        let formattedName = itemName.includes('.') ? itemName.replace(/\s+/g, '-') : itemName.toLowerCase().replace(/\s+/g, '-');
+        const suffix = '/' + formattedName;
+        
+        currentPaths.forEach(p => {
           validPaths.push(p.endsWith(suffix) ? p : p + suffix);
         });
-        pendingPaths = [];
       } else {
         invalidCount++;
       }
     }
     
-    pendingPaths.forEach(p => validPaths.push(p));
+    // Si quedaron paths pendientes sin items, los agregamos solos
+    if (expectingPaths) {
+        currentPaths.forEach(p => validPaths.push(p));
+    }
 
     const finalPaths = validPaths.filter(path => path.length > 10);
     const uniquePaths = [...new Set(finalPaths)];
