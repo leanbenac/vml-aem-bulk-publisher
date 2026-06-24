@@ -192,130 +192,16 @@ async function injectPathsIntoAemTable(paths) {
             emptyMessageRow.remove();
         }
 
-        // ==========================================
-        // XSS SAFE DOM INJECTION (.antigravityrules)
-        // ==========================================
-        const tr = document.createElement('tr');
-        tr.setAttribute('is', 'coral-table-row');
-        tr.className = 'foundation-collection-item _coral-Table-row';
-        tr.setAttribute('itemprop', 'item');
-        tr.setAttribute('data-foundation-collection-item-id', path);
-        tr.setAttribute('tabindex', '0');
-        tr.setAttribute('aria-selected', 'true');
-
-        // Checkbox Cell
-        const tdCheck = document.createElement('td');
-        tdCheck.setAttribute('is', 'coral-table-cell');
-        tdCheck.className = 'select _coral-Table-cell _coral-Table-cell--check';
+        // Enviar evento al Main World para que construya la fila con acceso a los prototipos de Coral UI
+        const eventData = {
+            path: path,
+            titleText: titleText,
+            modifiedText: modifiedText,
+            publishedText: publishedText,
+            previewedText: previewedText
+        };
         
-        const coralCheck = document.createElement('coral-checkbox');
-        coralCheck.setAttribute('coral-table-rowselect', '');
-        coralCheck.className = '_coral-Checkbox';
-        coralCheck.setAttribute('checked', '');
-
-        const inputCheck = document.createElement('input');
-        inputCheck.type = 'checkbox';
-        inputCheck.setAttribute('handle', 'input');
-        inputCheck.className = '_coral-Checkbox-input';
-        inputCheck.setAttribute('aria-label', 'Select');
-        inputCheck.checked = true;
-
-        const spanBox = document.createElement('span');
-        spanBox.className = '_coral-Checkbox-box';
-        spanBox.setAttribute('handle', 'checkbox');
-        spanBox.innerHTML = '<svg focusable="false" aria-hidden="true" class="_coral-Icon--svg _coral-Icon _coral-Checkbox-checkmark _coral-UIIcon-CheckmarkSmall"><use xlink:href="#spectrum-css-icon-CheckmarkSmall"></use></svg>';
-        
-        coralCheck.appendChild(inputCheck);
-        coralCheck.appendChild(spanBox);
-        tdCheck.appendChild(coralCheck);
-
-        // Title Cell
-        const tdTitle = document.createElement('td');
-        tdTitle.setAttribute('is', 'coral-table-cell');
-        tdTitle.className = 'foundation-collection-item-title _coral-Table-cell';
-        tdTitle.setAttribute('alignment', 'column');
-
-        const spanTitleContainer = document.createElement('span');
-        spanTitleContainer.textContent = titleText + ' ';
-        
-        const spanInjected = document.createElement('span');
-        spanInjected.style.fontSize = '10px';
-        spanInjected.style.color = '#22c55e';
-        spanInjected.style.marginLeft = '4px';
-        spanInjected.textContent = '(Injected)';
-        spanTitleContainer.appendChild(spanInjected);
-
-        const divPath = document.createElement('div');
-        divPath.className = 'foundation-layout-util-subtletext';
-        divPath.textContent = path;
-
-        tdTitle.appendChild(spanTitleContainer);
-        tdTitle.appendChild(divPath);
-
-        // Modified Cell
-        const tdModified = document.createElement('td');
-        tdModified.setAttribute('is', 'coral-table-cell');
-        tdModified.className = 'foundation-collection-item-modified _coral-Table-cell';
-        tdModified.setAttribute('alignment', 'column');
-        const divModified = document.createElement('div');
-        divModified.className = 'foundation-layout-util-subtletext';
-        divModified.textContent = modifiedText;
-        tdModified.appendChild(divModified);
-
-        // Published Cell
-        const tdPublished = document.createElement('td');
-        tdPublished.setAttribute('is', 'coral-table-cell');
-        tdPublished.className = 'foundation-collection-item-published _coral-Table-cell';
-        tdPublished.setAttribute('alignment', 'column');
-        const divPublished = document.createElement('div');
-        divPublished.className = 'foundation-layout-util-subtletext';
-        divPublished.textContent = publishedText;
-        tdPublished.appendChild(divPublished);
-
-        // Previewed Cell
-        const tdPreviewed = document.createElement('td');
-        tdPreviewed.setAttribute('is', 'coral-table-cell');
-        tdPreviewed.className = 'foundation-collection-item-previewed _coral-Table-cell';
-        tdPreviewed.setAttribute('alignment', 'column');
-        const divPreviewed = document.createElement('div');
-        divPreviewed.className = 'foundation-layout-util-subtletext';
-        divPreviewed.textContent = previewedText;
-        tdPreviewed.appendChild(divPreviewed);
-
-        // References Cell
-        const tdReferences = document.createElement('td');
-        tdReferences.setAttribute('is', 'coral-table-cell');
-        tdReferences.className = 'foundation-collection-item-references _coral-Table-cell';
-        tdReferences.setAttribute('alignment', 'column');
-        tdReferences.textContent = 'all';
-
-        // Target Cell
-        const tdTarget = document.createElement('td');
-        tdTarget.setAttribute('is', 'coral-table-cell');
-        tdTarget.className = 'foundation-collection-item-publish-target _coral-Table-cell';
-        tdTarget.setAttribute('alignment', 'column');
-        const spanTarget = document.createElement('span');
-        spanTarget.textContent = 'AEM';
-        tdTarget.appendChild(spanTarget);
-
-        // Hidden input required by AEM form submission
-        const hiddenInput = document.createElement('input');
-        hiddenInput.type = 'hidden';
-        hiddenInput.name = 'path';
-        hiddenInput.value = path;
-
-        // Assemble Row
-        tr.appendChild(tdCheck);
-        tr.appendChild(tdTitle);
-        tr.appendChild(tdModified);
-        tr.appendChild(tdPublished);
-        tr.appendChild(tdPreviewed);
-        tr.appendChild(tdReferences);
-        tr.appendChild(tdTarget);
-
-        // Insert into table
-        tbody.appendChild(tr);
-        tbody.appendChild(hiddenInput);
+        document.dispatchEvent(new CustomEvent('VML_AEM_INJECT_ROW', { detail: eventData }));
 
         injectedCount++;
     }

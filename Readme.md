@@ -1,6 +1,6 @@
 # VML AEM Bulk Publisher
 
-![Version](https://img.shields.io/badge/version-1.1-brightgreen.svg)
+![Version](https://img.shields.io/badge/version-1.2.0-brightgreen.svg)
 ![Type](https://img.shields.io/badge/type-Extensi%C3%B3n%20de%20Chrome-blue)
 Una Extensión de Chrome premium diseñada para el VML Automation Squad, creada para acelerar los flujos de publicación de contenido en **Adobe Experience Manager (AEM) as a Cloud Service**.
 
@@ -43,13 +43,14 @@ Ejecutar desde PowerShell:
 ```powershell
 .\pack.ps1
 ```
-Esto generará el archivo `vml-aem-bulk-publisher-v1.1.zip` en tu Escritorio, listo para ser compartido o subido a la Chrome Web Store.
+Esto generará el archivo `vml-aem-bulk-publisher-v1.2.0.zip` en tu Escritorio, listo para ser compartido o subido a la Chrome Web Store.
 
 ## 🛡️ Seguridad y Arquitectura
 
 Este proyecto sigue estrictamente las directrices de AppSec (Seguridad de Aplicaciones) definidas en `.antigravityrules`. 
 - El uso de `innerHTML` e `insertAdjacentHTML` está **estrictamente prohibido** para renderizar inputs del usuario.
 - Todas las filas inyectadas se construyen de forma programática utilizando `document.createElement()` y `textContent` para asegurar una prevención absoluta contra ataques XSS.
+- Utiliza la API nativa `chrome.scripting` para inyectar código de manera segura en el entorno principal (Main World), garantizando que los componentes de Coral UI se instancien correctamente sin violar las políticas de seguridad (CSP) estrictas de AEM.
 - La extensión se ejecuta enteramente en el contexto de la pestaña activa (permiso `activeTab`) sin scripts de fondo persistentes ni peticiones cruzadas (cross-origin).
 
 ---
