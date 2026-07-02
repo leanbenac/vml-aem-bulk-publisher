@@ -9,7 +9,7 @@ Welcome to the **AEM Bulk Publisher** repository. This file defines the architec
 - **Name:** AEM Bulk Publisher
 - **Type:** Google Chrome Extension (Manifest V3)
 - **Author:** VML Argentina - Automation Squad
-- **Current Version:** 1.0
+- **Current Version:** 1.3.0
 - **Purpose:** Allows bulk upload and quick injection of paths into the 'Manage Publication' wizard in Adobe Experience Manager (AEM) as a Cloud Service, automating the manual process.
 - **Target AEM:** AEM as a Cloud Service `https://*.adobeaemcloud.com/*`
 - **API:** Does not use an external API. Interacts directly with the Coral UI DOM on the Manage Publication screen.
@@ -67,6 +67,7 @@ When adding a new module:
 ## 🛡️ Strict AppSec & Quality Rules
 
 - **XSS Protection (DOM Construction):** Injected paths come from user input (textarea). You **must never** use `insertAdjacentHTML` or `innerHTML` for any content derived from user input or external APIs. You **must always** build the DOM programmatically using `document.createElement()` and `.textContent` to completely neutralize Cross-Site Scripting (XSS) risks in the AEM author session.
+- **Native DOM Alignment:** Any UI injected into AEM (like custom columns or thumbnails) MUST strictly match AEM's native Coral UI DOM structure and class hierarchy. Do not rely on inline CSS to force layout; let AEM's native CSS handle rendering to prevent breaking the layout or causing visual regressions.
 - **No Eval:** Never use `eval()`.
 - **Credentials:** Does not require credential handling. Acts passively on the active AEM session.
 - **Minimal Permissions:** Only `activeTab` and `scripting`. Host permissions limited to `https://*.adobeaemcloud.com/*`.

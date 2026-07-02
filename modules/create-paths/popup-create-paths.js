@@ -211,6 +211,15 @@ document.addEventListener('DOMContentLoaded', () => {
              coralCheck.appendChild(spanBox);
              tdCheck.appendChild(coralCheck);
 
+             const thumbnailImg = document.createElement('img');
+             thumbnailImg.className = 'foundation-collection-item-thumbnail';
+             thumbnailImg.setAttribute('alt', '');
+             thumbnailImg.src = data.path + '.thumb.48.48.png';
+             thumbnailImg.onerror = function() {
+                 this.style.display = 'none';
+             };
+             tdCheck.appendChild(thumbnailImg);
+
              const tdTitle = document.createElement('td', { is: 'coral-table-cell' });
              tdTitle.className = 'foundation-collection-item-title _coral-Table-cell';
              tdTitle.setAttribute('alignment', 'column');

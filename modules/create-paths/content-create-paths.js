@@ -6,6 +6,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'INJECT_PATHS') {
         injectPathsIntoAemTable(request.paths)
             .then(result => {
+                const progressUi = document.getElementById('vml-aem-progress-ui');
+                if (progressUi) {
+                    const title = progressUi.querySelector('div');
+                    if (title) title.innerHTML = 'VML Bulk Publisher <span style="font-weight:normal; color:#22c55e;">| Done!</span>';
+                    setTimeout(() => { progressUi.style.display = 'none'; }, 3000);
+                }
                 sendResponse({ 
                     success: true, 
                     injectedCount: result.injectedCount, 
@@ -18,6 +24,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     // Do not call sendResponse! Let another valid iframe respond.
                     return;
                 }
+                const progressUi = document.getElementById('vml-aem-progress-ui');
+                if (progressUi) progressUi.style.display = 'none';
                 sendResponse({ success: false, error: err.message });
             });
         
@@ -68,6 +76,67 @@ async function injectPathsIntoAemTable(paths) {
         throw new Error('Parent table not found for the selected body.');
     }
 
+    // --- Create Floating Progress UI ---
+    let progressUi = document.getElementById('vml-aem-progress-ui');
+    if (!progressUi) {
+        progressUi = document.createElement('div');
+        progressUi.id = 'vml-aem-progress-ui';
+        progressUi.style.position = 'fixed';
+        progressUi.style.bottom = '24px';
+        progressUi.style.right = '24px';
+        progressUi.style.backgroundColor = '#1e293b';
+        progressUi.style.color = '#fff';
+        progressUi.style.padding = '16px 20px';
+        progressUi.style.borderRadius = '8px';
+        progressUi.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.3)';
+        progressUi.style.zIndex = '999999';
+        progressUi.style.fontFamily = 'Inter, sans-serif';
+        progressUi.style.display = 'flex';
+        progressUi.style.flexDirection = 'column';
+        progressUi.style.gap = '10px';
+        progressUi.style.minWidth = '260px';
+
+        const title = document.createElement('div');
+        title.style.fontWeight = 'bold';
+        title.style.fontSize = '14px';
+        title.innerHTML = 'VML Bulk Publisher <span style="font-weight:normal; opacity:0.8;">| Injecting...</span>';
+        progressUi.appendChild(title);
+
+        const progressContainer = document.createElement('div');
+        progressContainer.style.width = '100%';
+        progressContainer.style.backgroundColor = 'rgba(255,255,255,0.2)';
+        progressContainer.style.height = '6px';
+        progressContainer.style.borderRadius = '3px';
+        progressContainer.style.overflow = 'hidden';
+
+        const progressBar = document.createElement('div');
+        progressBar.id = 'vml-aem-progress-bar';
+        progressBar.style.width = '0%';
+        progressBar.style.backgroundColor = '#22c55e';
+        progressBar.style.height = '100%';
+        progressBar.style.transition = 'width 0.2s ease';
+        progressContainer.appendChild(progressBar);
+        progressUi.appendChild(progressContainer);
+
+        const statusText = document.createElement('div');
+        statusText.id = 'vml-aem-progress-text';
+        statusText.style.fontSize = '12px';
+        statusText.style.opacity = '0.9';
+        statusText.textContent = `0 / ${paths.length} paths processed`;
+        progressUi.appendChild(statusText);
+
+        document.body.appendChild(progressUi);
+    } else {
+        progressUi.style.display = 'flex';
+        const title = progressUi.querySelector('div');
+        if (title) title.innerHTML = 'VML Bulk Publisher <span style="font-weight:normal; opacity:0.8;">| Injecting...</span>';
+        const pb = document.getElementById('vml-aem-progress-bar');
+        if (pb) pb.style.width = '0%';
+        const pt = document.getElementById('vml-aem-progress-text');
+        if (pt) pt.textContent = `0 / ${paths.length} paths processed`;
+    }
+    // -----------------------------------
+
     let injectedCount = 0;
     let skippedCount = 0;
     let notFoundCount = 0;
@@ -109,6 +178,14 @@ async function injectPathsIntoAemTable(paths) {
             });
         } catch(e) {
             // Ignore if popup is closed
+        }
+        
+        // Report progress to DOM UI
+        const pb = document.getElementById('vml-aem-progress-bar');
+        const pt = document.getElementById('vml-aem-progress-text');
+        if (pb && pt) {
+            pb.style.width = `${((i + 1) / paths.length) * 100}%`;
+            pt.textContent = `${i + 1} / ${paths.length} paths processed`;
         }
 
         // Evitar duplicados (si el path ya está en la tabla)
